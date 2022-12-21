@@ -8,7 +8,7 @@ const transformRpx = require('./utils/transformRpx.js').transformRpx
 
 Component({
   options: {
-    multipleSlots: true // 在组件定义时的选项中启用多slot支持
+    multipleSlots: true, // 在组件定义时的选项中启用多slot支持
   },
   relations: {
     '../recycle-item/recycle-item': {
@@ -23,21 +23,30 @@ Component({
           }
           setTimeout(() => {
             try {
-              target.createSelectorQuery().select('.wx-recycle-item').boundingClientRect((rect) => {
-                if (rect && (rect.width !== size.width || rect.height !== size.height)) {
-                  // eslint-disable-next-line no-console
-                  console.warn('[recycle-view] the size in <recycle-item> is not the same with param ' +
-                    `itemSize, expect {width: ${rect.width}, height: ${rect.height}} but got ` +
-                    `{width: ${size.width}, height: ${size.height}}`)
-                }
-              }).exec()
+              target
+                .createSelectorQuery()
+                .select('.wx-recycle-item')
+                .boundingClientRect((rect) => {
+                  if (
+                    rect &&
+                    (rect.width !== size.width || rect.height !== size.height)
+                  ) {
+                    // eslint-disable-next-line no-console
+                    console.warn(
+                      '[recycle-view] the size in <recycle-item> is not the same with param ' +
+                        `itemSize, expect {width: ${rect.width}, height: ${rect.height}} but got ` +
+                        `{width: ${size.width}, height: ${size.height}}`
+                    )
+                  }
+                })
+                .exec()
             } catch (e) {
               // do nothing
             }
           }, 10)
         }
-      }
-    }
+      },
+    },
   },
   /**
    * 组件的属性列表
@@ -45,7 +54,7 @@ Component({
   properties: {
     debug: {
       type: Boolean,
-      value: false
+      value: false,
     },
     scrollY: {
       type: Boolean,
@@ -55,7 +64,7 @@ Component({
       type: Boolean,
       value: false,
       public: true,
-      observer: '_recycleInnerBatchDataChanged'
+      observer: '_recycleInnerBatchDataChanged',
     },
     batchKey: {
       type: String,
@@ -67,19 +76,19 @@ Component({
       value: 0,
       public: true,
       observer: '_scrollTopChanged',
-      observeAssignments: true
+      observeAssignments: true,
     },
     height: {
       type: Number,
       value: systemInfo.windowHeight,
       public: true,
-      observer: '_heightChanged'
+      observer: '_heightChanged',
     },
     width: {
       type: Number,
       value: systemInfo.windowWidth,
       public: true,
-      observer: '_widthChanged'
+      observer: '_widthChanged',
     },
     // 距顶部/左边多远时，触发bindscrolltoupper
     upperThreshold: {
@@ -98,34 +107,39 @@ Component({
       public: true,
       value: 0,
       observer: '_scrollToIndexChanged',
-      observeAssignments: true
+      observeAssignments: true,
     },
     scrollWithAnimation: {
       type: Boolean,
       public: true,
-      value: false
+      value: false,
     },
     enableBackToTop: {
       type: Boolean,
       public: true,
-      value: false
+      value: false,
     },
     // 是否节流，默认是
     throttle: {
       type: Boolean,
       public: true,
-      value: true
+      value: true,
     },
     placeholderImage: {
       type: String,
       public: true,
-      value: ''
+      value: '',
     },
-    screen: { // 默认渲染多少屏的数据
+    screen: {
+      // 默认渲染多少屏的数据
       type: Number,
       public: true,
-      value: DEFAULT_SHOW_SCREENS
-    }
+      value: DEFAULT_SHOW_SCREENS,
+    },
+
+    // 以下是自定义组件下拉刷新属性
+    refresherenabled: Boolean,
+    refreshertriggered: Boolean,
   },
 
   /**
@@ -138,18 +152,18 @@ Component({
     innerScrollIntoView: '',
     placeholderImageStr: '',
     totalHeight: 0,
-    useInPage: false
+    useInPage: false,
   },
   attached() {
     if (this.data.placeholderImage) {
       this.setData({
-        placeholderImageStr: transformRpx(this.data.placeholderImage, true)
+        placeholderImageStr: transformRpx(this.data.placeholderImage, true),
       })
     }
     this.setItemSize({
       array: [],
       map: {},
-      totalHeight: 0
+      totalHeight: 0,
     })
   },
   ready() {
@@ -158,13 +172,16 @@ Component({
       // 有一个更新的timer在了
       if (this._updateTimerId) return
 
-      this._scrollViewDidScroll({
-        detail: {
-          scrollLeft: this._pos.left,
-          scrollTop: this._pos.top,
-          ignoreScroll: true
-        }
-      }, true)
+      this._scrollViewDidScroll(
+        {
+          detail: {
+            scrollLeft: this._pos.left,
+            scrollTop: this._pos.top,
+            ignoreScroll: true,
+          },
+        },
+        true
+      )
     })
   },
   detached() {
@@ -204,16 +221,22 @@ Component({
       const pos = this._pos
       pos.beginIndex = this._pos.endIndex = -1
       pos.afterHeight = pos.minTop = pos.maxTop = 0
-      this.page._recycleViewportChange({
-        detail: {
-          data: pos,
-          id: this.id
-        }
-      }, cb)
+      this.page._recycleViewportChange(
+        {
+          detail: {
+            data: pos,
+            id: this.id,
+          },
+        },
+        cb
+      )
     },
     // 判断RecycleContext是否Ready
     _isValid() {
       return this.page && this.context && this.context.isDataReady
+    },
+    _refresherrefresh(e) {
+      this.triggerEvent('refresherrefresh', e.detail)
     },
     // eslint-disable-next-line no-complexity
     _scrollViewDidScroll(e, force) {
@@ -243,45 +266,68 @@ Component({
       const scrollLeft = e.detail.scrollLeft
       const scrollTop = e.detail.scrollTop
       const scrollDistance = Math.abs(scrollTop - this._lastScrollTop)
-      if (!force && (Math.abs(scrollTop - pos.top) < pos.height * 1.5)) {
+      if (!force && Math.abs(scrollTop - pos.top) < pos.height * 1.5) {
         this._log('【not exceed height')
         return
       }
       this._lastScrollTop = scrollTop
       const SHOW_SCREENS = this.data.screen // 固定4屏幕
       this._log('SHOW_SCREENS', SHOW_SCREENS, scrollTop)
-      this._calcViewportIndexes(scrollLeft, scrollTop,
-          (beginIndex, endIndex, minTop, afterHeight, maxTop) => {
-        that._log('scrollDistance', scrollDistance, 'indexes', beginIndex, endIndex)
-        // 渲染的数据不变
-        if (!force && pos.beginIndex === beginIndex && pos.endIndex === endIndex &&
-            pos.minTop === minTop && pos.afterHeight === afterHeight) {
-          that._log('------------is the same beginIndex and endIndex')
-          return
+      this._calcViewportIndexes(
+        scrollLeft,
+        scrollTop,
+        (beginIndex, endIndex, minTop, afterHeight, maxTop) => {
+          that._log(
+            'scrollDistance',
+            scrollDistance,
+            'indexes',
+            beginIndex,
+            endIndex
+          )
+          // 渲染的数据不变
+          if (
+            !force &&
+            pos.beginIndex === beginIndex &&
+            pos.endIndex === endIndex &&
+            pos.minTop === minTop &&
+            pos.afterHeight === afterHeight
+          ) {
+            that._log('------------is the same beginIndex and endIndex')
+            return
+          }
+          // 如果这次渲染的范围比上一次的范围小，则忽略
+          that._log(
+            '【check】before setData, old pos is',
+            pos.minTop,
+            pos.maxTop,
+            minTop,
+            maxTop
+          )
+          that._throttle = false
+          pos.left = scrollLeft
+          pos.top = scrollTop
+          pos.beginIndex = beginIndex
+          pos.endIndex = endIndex
+          // console.log('render indexes', endIndex - beginIndex + 1, endIndex, beginIndex)
+          pos.minTop = minTop
+          pos.maxTop = maxTop
+          pos.afterHeight = afterHeight
+          pos.ignoreBeginIndex = pos.ignoreEndIndex = -1
+          that.page._recycleViewportChange(
+            {
+              detail: {
+                data: that._pos,
+                id: that.id,
+              },
+            },
+            () => {
+              if (e.detail.cb) {
+                e.detail.cb()
+              }
+            }
+          )
         }
-        // 如果这次渲染的范围比上一次的范围小，则忽略
-        that._log('【check】before setData, old pos is', pos.minTop, pos.maxTop, minTop, maxTop)
-        that._throttle = false
-        pos.left = scrollLeft
-        pos.top = scrollTop
-        pos.beginIndex = beginIndex
-        pos.endIndex = endIndex
-        // console.log('render indexes', endIndex - beginIndex + 1, endIndex, beginIndex)
-        pos.minTop = minTop
-        pos.maxTop = maxTop
-        pos.afterHeight = afterHeight
-        pos.ignoreBeginIndex = pos.ignoreEndIndex = -1
-        that.page._recycleViewportChange({
-          detail: {
-            data: that._pos,
-            id: that.id
-          }
-        }, () => {
-          if (e.detail.cb) {
-            e.detail.cb()
-          }
-        })
-      })
+      )
     },
     // 计算在视窗内渲染的数据
     _calcViewportIndexes(left, top, cb) {
@@ -289,8 +335,9 @@ Component({
       // const st = +new Date
       this._getBeforeSlotHeight(() => {
         const {
-          beginIndex, endIndex, minTop, afterHeight, maxTop
-        } = that.__calcViewportIndexes(left, top)
+ beginIndex, endIndex, minTop, afterHeight, maxTop
+} =
+          that.__calcViewportIndexes(left, top)
         if (cb) {
           cb(beginIndex, endIndex, minTop, afterHeight, maxTop)
         }
@@ -319,7 +366,7 @@ Component({
       if (minTop === maxTop && maxTop === 0) {
         return {
           beginIndex: -1,
-          endIndex: -1
+          endIndex: -1,
         }
       }
       const startLine = Math.floor(minTop / RECT_SIZE)
@@ -348,12 +395,17 @@ Component({
       }
       return {
         beginIndex,
-        endIndex
+        endIndex,
       }
     },
     _isIndexValid(beginIndex, endIndex) {
-      if (typeof beginIndex === 'undefined' || beginIndex === -1 ||
-        typeof endIndex === 'undefined' || endIndex === -1 || endIndex >= this.sizeArray.length) {
+      if (
+        typeof beginIndex === 'undefined' ||
+        beginIndex === -1 ||
+        typeof endIndex === 'undefined' ||
+        endIndex === -1 ||
+        endIndex >= this.sizeArray.length
+      ) {
         return false
       }
       return true
@@ -362,10 +414,10 @@ Component({
       if (!this.sizeArray.length) return {}
       const pos = this._pos
       if (typeof left === 'undefined') {
-        (left = pos.left)
+        left = pos.left
       }
       if (typeof top === 'undefined') {
-        (top = pos.top)
+        top = pos.top
       }
       // top = Math.max(top, this.data.beforeSlotHeight)
       const beforeSlotHeight = this.data.beforeSlotHeight || 0
@@ -375,7 +427,7 @@ Component({
       let maxTop = top + pos.height * SHOW_SCREENS - beforeSlotHeight
       // maxTop或者是minTop超出了范围
       if (maxTop > this.totalHeight) {
-        minTop -= (maxTop - this.totalHeight)
+        minTop -= maxTop - this.totalHeight
         maxTop = this.totalHeight
       }
       if (minTop < beforeSlotHeight) {
@@ -396,11 +448,12 @@ Component({
           endIndex: -1,
           minTop: 0,
           afterHeight: 0,
-          maxTop: 0
+          maxTop: 0,
         }
       }
       // 计算白屏的默认占位的区域
-      const maxTopFull = this.sizeArray[endIndex].beforeHeight + this.sizeArray[endIndex].height
+      const maxTopFull =
+        this.sizeArray[endIndex].beforeHeight + this.sizeArray[endIndex].height
       const minTopFull = this.sizeArray[beginIndex].beforeHeight
 
       // console.log('render indexes', beginIndex, endIndex)
@@ -420,7 +473,7 @@ Component({
         // console.log('---totalHeight is', size.totalHeight);
         this.setData({
           totalHeight: size.totalHeight,
-          useInPage: this.useInPage || false
+          useInPage: this.useInPage || false,
         })
       }
       this.totalHeight = size.totalHeight
@@ -447,24 +500,30 @@ Component({
       const that = this
       if (reInit) {
         this.reRender(() => {
-          that._scrollViewDidScroll({
+          that._scrollViewDidScroll(
+            {
+              detail: {
+                scrollLeft: that._pos.left,
+                scrollTop: that.currentScrollTop || that.data.scrollTop || 0,
+                ignoreScroll: true,
+                cb,
+              },
+            },
+            true
+          )
+        })
+      } else {
+        this._scrollViewDidScroll(
+          {
             detail: {
               scrollLeft: that._pos.left,
               scrollTop: that.currentScrollTop || that.data.scrollTop || 0,
               ignoreScroll: true,
-              cb
-            }
-          }, true)
-        })
-      } else {
-        this._scrollViewDidScroll({
-          detail: {
-            scrollLeft: that._pos.left,
-            scrollTop: that.currentScrollTop || that.data.scrollTop || 0,
-            ignoreScroll: true,
-            cb
-          }
-        }, true)
+              cb,
+            },
+          },
+          true
+        )
       }
     },
     _initPosition(cb) {
@@ -474,7 +533,7 @@ Component({
         top: that.data.scrollTop || 0,
         width: this.data.width,
         height: Math.max(500, this.data.height), // 一个屏幕的高度
-        direction: 0
+        direction: 0,
       }
       this.reRender(cb)
     },
@@ -496,13 +555,15 @@ Component({
       const that = this
       // const reRenderStart = Date.now()
       function newCb() {
-        if (that._lastBeforeSlotHeight !== beforeSlotHeight ||
-            that._lastAfterSlotHeight !== afterSlotHeight) {
+        if (
+          that._lastBeforeSlotHeight !== beforeSlotHeight ||
+          that._lastAfterSlotHeight !== afterSlotHeight
+        ) {
           that.setData({
             hasBeforeSlotHeight: true,
             hasAfterSlotHeight: true,
             beforeSlotHeight,
-            afterSlotHeight
+            afterSlotHeight,
           })
         }
         that._lastBeforeSlotHeight = beforeSlotHeight
@@ -516,25 +577,38 @@ Component({
       let beforeReady = false
       let afterReady = false
       // fix：#16 确保获取slot节点实际高度
-      this.setData({
-        hasBeforeSlotHeight: false,
-        hasAfterSlotHeight: false,
-      }, () => {
-        this.createSelectorQuery().select('.slot-before').boundingClientRect((rect) => {
-          beforeSlotHeight = rect.height
-          beforeReady = true
-          if (afterReady) {
-            if (newCb) { newCb() }
-          }
-        }).exec()
-        this.createSelectorQuery().select('.slot-after').boundingClientRect((rect) => {
-          afterSlotHeight = rect.height
-          afterReady = true
-          if (beforeReady) {
-            if (newCb) { newCb() }
-          }
-        }).exec()
-      })
+      this.setData(
+        {
+          hasBeforeSlotHeight: false,
+          hasAfterSlotHeight: false,
+        },
+        () => {
+          this.createSelectorQuery()
+            .select('.slot-before')
+            .boundingClientRect((rect) => {
+              beforeSlotHeight = rect.height
+              beforeReady = true
+              if (afterReady) {
+                if (newCb) {
+                  newCb()
+                }
+              }
+            })
+            .exec()
+          this.createSelectorQuery()
+            .select('.slot-after')
+            .boundingClientRect((rect) => {
+              afterSlotHeight = rect.height
+              afterReady = true
+              if (beforeReady) {
+                if (newCb) {
+                  newCb()
+                }
+              }
+            })
+            .exec()
+        }
+      )
     },
     _setInnerBeforeAndAfterHeight(obj) {
       if (typeof obj.beforeHeight !== 'undefined') {
@@ -548,7 +622,7 @@ Component({
       if (typeof this._tmpBeforeHeight !== 'undefined') {
         const setObj = {
           innerBeforeHeight: this._tmpBeforeHeight || 0,
-          innerAfterHeight: this._tmpAfterHeight || 0
+          innerAfterHeight: this._tmpAfterHeight || 0,
         }
         if (typeof this._tmpInnerScrollTop !== 'undefined') {
           setObj.innerScrollTop = this._tmpInnerScrollTop
@@ -567,7 +641,7 @@ Component({
           }
           this.setData(setObj, () => {
             this.setData({
-              scrollWithAnimation: saveScrollWithAnimation
+              scrollWithAnimation: saveScrollWithAnimation,
             })
             if (typeof cb === 'function') {
               cb()
@@ -584,18 +658,21 @@ Component({
     },
     _renderByScrollTop(scrollTop) {
       // 先setData把目标位置的数据补齐
-      this._scrollViewDidScroll({
-        detail: {
-          scrollLeft: this._pos.scrollLeft,
-          scrollTop,
-          ignoreScroll: true
-        }
-      }, true)
+      this._scrollViewDidScroll(
+        {
+          detail: {
+            scrollLeft: this._pos.scrollLeft,
+            scrollTop,
+            ignoreScroll: true,
+          },
+        },
+        true
+      )
       if (this.data.scrollWithAnimation) {
         this._isScrollingWithAnimation = true
       }
       this.setData({
-        innerScrollTop: scrollTop
+        innerScrollTop: scrollTop,
       })
     },
     _scrollTopChanged(newVal, oldVal) {
@@ -623,7 +700,7 @@ Component({
       // 滑动距离小于一个屏幕的高度, 直接setData
       if (Math.abs(newVal - this._lastScrollTop) < this._pos.height) {
         this.setData({
-          innerScrollTop: newVal
+          innerScrollTop: newVal,
         })
         return newVal
       }
@@ -661,12 +738,12 @@ Component({
       }
       const rect = this.boundingClientRect(newVal)
       if (!rect) return newVal
-        // console.log('rect top', rect, this.data.beforeSlotHeight)
+      // console.log('rect top', rect, this.data.beforeSlotHeight)
       const calScrollTop = rect.top + (this.data.beforeSlotHeight || 0)
       this.currentScrollTop = calScrollTop
       if (Math.abs(calScrollTop - this._lastScrollTop) < this._pos.height) {
         this.setData({
-          innerScrollTop: calScrollTop
+          innerScrollTop: calScrollTop,
         })
         return newVal
       }
@@ -689,14 +766,14 @@ Component({
         left: 0,
         top: this.sizeArray[idx].beforeHeight,
         width: this.sizeArray[idx].width,
-        height: this.sizeArray[idx].height
+        height: this.sizeArray[idx].height,
       }
     },
     // 获取当前出现在屏幕内数据项， 返回数据项组成的数组
     // 参数inViewportPx表示当数据项至少有多少像素出现在屏幕内才算是出现在屏幕内，默认是1
     getIndexesInViewport(inViewportPx) {
       if (!inViewportPx) {
-        (inViewportPx = 1)
+        inViewportPx = 1
       }
       const scrollTop = this.currentScrollTop
       let minTop = scrollTop + inViewportPx
@@ -705,8 +782,10 @@ Component({
       if (maxTop > this.totalHeight) maxTop = this.totalHeight
       const indexes = []
       for (let i = 0; i < this.sizeArray.length; i++) {
-        if (this.sizeArray[i].beforeHeight + this.sizeArray[i].height >= minTop &&
-            this.sizeArray[i].beforeHeight <= maxTop) {
+        if (
+          this.sizeArray[i].beforeHeight + this.sizeArray[i].height >= minTop &&
+          this.sizeArray[i].beforeHeight <= maxTop
+        ) {
           indexes.push(i)
         }
         if (this.sizeArray[i].beforeHeight > maxTop) break
@@ -720,15 +799,19 @@ Component({
       this.useInPage = useInPage
     },
     setPlaceholderImage(svgs, size) {
-      const fill = 'style=\'fill:rgb(204,204,204);\''
-      const placeholderImages = [`data:image/svg+xml,%3Csvg height='${size.height}' width='${size.width}' xmlns='http://www.w3.org/2000/svg'%3E`]
-      svgs.forEach(svg => {
-        placeholderImages.push(`%3Crect width='${svg.width}' x='${svg.left}' height='${svg.height}' y='${svg.top}' ${fill} /%3E`)
+      const fill = "style='fill:rgb(204,204,204);'"
+      const placeholderImages = [
+        `data:image/svg+xml,%3Csvg height='${size.height}' width='${size.width}' xmlns='http://www.w3.org/2000/svg'%3E`,
+      ]
+      svgs.forEach((svg) => {
+        placeholderImages.push(
+          `%3Crect width='${svg.width}' x='${svg.left}' height='${svg.height}' y='${svg.top}' ${fill} /%3E`
+        )
       })
       placeholderImages.push('%3C/svg%3E')
       this.setData({
-        placeholderImageStr: placeholderImages.join('')
+        placeholderImageStr: placeholderImages.join(''),
       })
-    }
-  }
+    },
+  },
 })
